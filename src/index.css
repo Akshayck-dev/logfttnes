@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-bg: #000000;
+    --color-card: rgba(18, 18, 20, 0.75);
+    --color-glass-border: rgba(255, 255, 255, 0.1);
+  }
+
+  body {
+    background-color: #000000;
+    color: #F4F4F5;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism Classes */
+.glass-card {
+  background: rgba(20, 20, 24, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-card-interactive {
+  background: rgba(24, 24, 28, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-interactive:active {
+  transform: scale(0.98);
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(35, 35, 42, 0.8);
+}
+
+.glass-nav {
+  background: rgba(10, 10, 12, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: #38BDF8;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Apple Specific Gradients */
+.gradient-flame {
+  background: linear-gradient(135deg, #FF5E36 0%, #FFAE33 100%);
+}
+
+.gradient-cyan {
+  background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
+}
+
+.gradient-emerald {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.gradient-purple {
+  background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+}
+
+.gradient-rose {
+  background: linear-gradient(135deg, #F43F5E 0%, #FB7185 100%);
+}
+
+.gradient-apple-dark {
+  background: linear-gradient(180deg, rgba(28, 28, 35, 0.8) 0%, rgba(12, 12, 16, 0.95) 100%);
+}
+
+/* Text Gradients */
+.text-gradient-flame {
+  background: linear-gradient(135deg, #FF5E36 0%, #FFAE33 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-cyan {
+  background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-purple {
+  background: linear-gradient(135deg, #A855F7 0%, #6366F1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom Hide Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
