@@ -7,7 +7,8 @@ export function normalizeFoodName(foodName: string): string {
   clean = translateMalayalamToEnglish(clean);
 
   // Plural to Singular Normalization
-  if (clean.endsWith('eggs')) clean = 'egg';
+  if (clean.endsWith('boiled eggs')) clean = 'boiled egg';
+  else if (clean.endsWith('eggs')) clean = 'egg';
   else if (clean === 'eggs') clean = 'egg';
   else if (clean.endsWith('chapatis') || clean.endsWith('chapattis')) clean = 'chapati';
   else if (clean.endsWith('rotis')) clean = 'roti';

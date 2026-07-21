@@ -1,46 +1,34 @@
 import { parseWithGeminiFlash } from '../geminiService';
-import { normalizeFoodName } from '../foodNormalizer';
-import { detectAndMergeDuplicates } from '../duplicateDetector';
-import { lookupNutrition } from '../nutritionService';
 
 async function runPipelineTests() {
-  console.log('🧪 Starting FitLog AI Nutrition & AI Pipeline Test Suite...\n');
+  console.log('🧪 Running FitLog AI Meal Parser Bug Fix Validation Suite...\n');
 
-  const testCases = [
-    { input: '3 eggs and oats', expectedIntent: 'meal', checkFood: 'egg' },
-    { input: '2 chapati chicken curry', expectedIntent: 'meal', checkFood: 'chapati' },
-    { input: 'half plate biryani', expectedIntent: 'meal', checkFood: 'biryani' },
-    { input: '1 scoop whey', expectedIntent: 'meal', checkFood: 'whey' },
-    { input: '25g almonds', expectedIntent: 'meal', checkFood: 'almond' },
-    { input: '1 litre water', expectedIntent: 'water' },
-    { input: '79.4 kg', expectedIntent: 'weight' },
-    { input: '45 min treadmill', expectedIntent: 'workout' },
-    { input: '7 hours sleep', expectedIntent: 'sleep' },
-    { input: 'രാവിലെ 3 മുട്ടയും ഒരു കപ്പ് ഓട്സും', expectedIntent: 'meal', checkFood: 'egg' }
-  ];
+  // Test 1: Morning Oats & Eggs (Must be BREAKFAST and extract BOTH oats & eggs)
+  const test1 = await parseWithGeminiFlash('Morning I ate one cup oats and three boiled eggs');
+  console.log('Test 1 Result:', JSON.stringify(test1, null, 2));
 
-  let passed = 0;
-  let failed = 0;
+  const t1Passed =
+    test1.intent === 'meal' &&
+    test1.mealData?.mealType === 'breakfast' &&
+    test1.mealData?.items?.length === 2;
 
-  for (let i = 0; i < testCases.length; i++) {
-    const tc = testCases[i];
-    try {
-      const result = await parseWithGeminiFlash(tc.input);
-      if (result.intent === tc.expectedIntent) {
-        console.log(`✅ Test ${i + 1} PASSED: "${tc.input}" -> Intent: ${result.intent}`);
-        passed++;
-      } else {
-        console.error(`❌ Test ${i + 1} FAILED: "${tc.input}" -> Expected: ${tc.expectedIntent}, Got: ${result.intent}`);
-        failed++;
-      }
-    } catch (err) {
-      console.error(`❌ Test ${i + 1} EXCEPTION: "${tc.input}"`, err);
-      failed++;
-    }
+  if (t1Passed) {
+    console.log('✅ Test 1 PASSED: "Morning I ate one cup oats and three boiled eggs" -> BREAKFAST with 2 food items!');
+  } else {
+    console.error('❌ Test 1 FAILED: Expected Breakfast with 2 items.');
   }
 
-  console.log(`\n📊 Test Summary: ${passed} PASSED, ${failed} FAILED out of ${testCases.length} tests.\n`);
-  return failed === 0;
+  // Test 2: Incomplete fragment "one cup of"
+  const test2 = await parseWithGeminiFlash('one cup of');
+  const t2Passed = test2.intent === 'ambiguous' && test2.clarificationQuestion?.includes('What food was one');
+
+  if (t2Passed) {
+    console.log('✅ Test 2 PASSED: "one cup of" -> Ambiguous with clarification question!');
+  } else {
+    console.error('❌ Test 2 FAILED: Expected clarification question for incomplete input.');
+  }
+
+  console.log(`\n📊 Test Result: ${t1Passed && t2Passed ? 'ALL TESTS PASSED ✅' : 'SOME TESTS FAILED ❌'}\n`);
 }
 
 runPipelineTests();

@@ -19,6 +19,7 @@ interface StandardMacroPerUnit {
 // Certified Nutrition Database Lookup Table
 const nutritionDatabase: Record<string, StandardMacroPerUnit> = {
   'egg': { calories: 74, proteinG: 6.3, carbsG: 0.4, fatG: 5.0, fiberG: 0, standardUnit: 'piece', unitAmount: 1 },
+  'boiled egg': { calories: 74, proteinG: 6.3, carbsG: 0.4, fatG: 5.0, fiberG: 0, standardUnit: 'piece', unitAmount: 1 },
   'oats': { calories: 389, proteinG: 16.9, carbsG: 66.3, fatG: 6.9, fiberG: 10.6, standardUnit: 'g', unitAmount: 100 },
   'chapati': { calories: 104, proteinG: 3.1, carbsG: 18.0, fatG: 3.0, fiberG: 2.5, standardUnit: 'piece', unitAmount: 1 },
   'roti': { calories: 104, proteinG: 3.1, carbsG: 18.0, fatG: 3.0, fiberG: 2.5, standardUnit: 'piece', unitAmount: 1 },
@@ -65,6 +66,8 @@ export function lookupNutrition(foodName: string, quantity: number, unit: string
   let multiplier = quantity / dbItem.unitAmount;
   if (unit === 'g' && dbItem.standardUnit === 'g') {
     multiplier = quantity / 100;
+  } else if ((unit === 'cup' || unit === 'cups') && dbItem.standardUnit === 'g') {
+    multiplier = (quantity * 80) / 100; // 1 cup ~ 80g
   }
 
   const result: NutritionInfo = {

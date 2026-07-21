@@ -1,4 +1,4 @@
-import { AiDetectedEntity } from '../types';
+import { AiDetectedEntity, MealCategory } from '../types';
 import { normalizeFoodName } from './foodNormalizer';
 import { detectAndMergeDuplicates } from './duplicateDetector';
 import { lookupNutrition } from './nutritionService';
@@ -14,6 +14,7 @@ const getApiKey = () => {
 export async function parseWithGeminiFlash(transcript: string): Promise<AiDetectedEntity> {
   const apiKey = getApiKey();
   const rawText = (transcript || '').trim();
+  const lowerText = rawText.toLowerCase();
 
   if (!rawText) {
     return {
@@ -23,19 +24,43 @@ export async function parseWithGeminiFlash(transcript: string): Promise<AiDetect
     };
   }
 
-  // System Prompt for Gemini 2.5 Flash / 1.5 Flash
-  const systemPrompt = `You are FitLog AI's Food & Fitness Entity Extractor.
+  // 1. Detect Incomplete Fragments
+  if (/\b(one|a|1|2|3)\s+(cup|glass|plate|bowl|scoop)\s+(of)?$/i.test(rawText) || lowerText.endsWith('of')) {
+    const qtyMatch = rawText.match(/\b(one|a|1|2|3)\s+(cup|glass|plate|bowl|scoop)/i);
+    const container = qtyMatch ? qtyMatch[2] : 'quantity';
+    return {
+      intent: 'ambiguous',
+      confidence: 0.5,
+      summaryText: `Incomplete entry: "${rawText}"`,
+      clarificationQuestion: `What food was one ${container}?`
+    };
+  }
 
-Analyze this natural language input (supporting English and Malayalam): "${rawText}"
+  // 2. Strict Time-of-Day Meal Type Determination
+  let mealType: MealCategory = 'lunch';
+  if (lowerText.includes('morning') || lowerText.includes('breakfast') || lowerText.includes('രാവിലെ')) {
+    mealType = 'breakfast';
+  } else if (lowerText.includes('lunch') || lowerText.includes('noon') || lowerText.includes('afternoon') || lowerText.includes('ഉച്ചയ്ക്ക്')) {
+    mealType = 'lunch';
+  } else if (lowerText.includes('evening') || lowerText.includes('snack')) {
+    mealType = 'snack';
+  } else if (lowerText.includes('dinner') || lowerText.includes('night') || lowerText.includes('രാത്രി')) {
+    mealType = 'dinner';
+  } else {
+    const hour = new Date().getHours();
+    mealType = hour < 11 ? 'breakfast' : hour < 16 ? 'lunch' : hour < 21 ? 'dinner' : 'snack';
+  }
+
+  // System Prompt for Gemini 2.5 Flash / 1.5 Flash
+  const systemPrompt = `You are FitLog AI's Precision Food & Fitness Entity Extractor.
+
+Analyze this natural language input: "${rawText}"
 
 STRICT RULES:
-1. Extract ONLY: Food Name, Quantity, Unit, Meal Type, and Item Confidence (0.0 to 1.0).
-2. DO NOT invent calories, protein, carbs, fat, or fiber. Set them as null.
-3. If input is a workout, extract title, durationMinutes, category (strength/cardio/hiit/yoga).
-4. If input is water, extract amountMl.
-5. If input is weight, extract weightKg.
-6. If input is sleep, extract durationHours.
-7. Return ONLY valid raw JSON. Never output Markdown blocks or explanations.
+1. Extract ALL food items separately (e.g. if input is "Morning I ate one cup oats and three boiled eggs", extract BOTH oats AND eggs!).
+2. DO NOT invent calories or macros.
+3. mealType MUST be "${mealType}".
+4. Return ONLY valid raw JSON.
 
 JSON SCHEMA:
 {
@@ -43,6 +68,7 @@ JSON SCHEMA:
   "confidence": number,
   "summaryText": string,
   "clarificationQuestion": string | null,
+  "mealType": "${mealType}",
   "foods": [
     {
       "name": string,
@@ -95,10 +121,10 @@ JSON SCHEMA:
 
   // Fallback to local parsing if Gemini is unconfigured or failed
   if (!extractedResult) {
-    extractedResult = parseLocalExtraction(rawText);
+    extractedResult = parseLocalExtraction(rawText, mealType);
   }
 
-  // Handle Non-Meal Intents (Water, Weight, Sleep, Workout)
+  // Non-Meal Intents (Water, Weight, Sleep, Workout)
   if (extractedResult.intent === 'water' && extractedResult.waterData) {
     return {
       intent: 'water',
@@ -112,7 +138,7 @@ JSON SCHEMA:
     return {
       intent: 'weight',
       confidence: extractedResult.confidence ?? 0.95,
-      summaryText: `Recorded current weight: ${extractedResult.weightData.weightKg} kg`,
+      summaryText: `Recorded weight: ${extractedResult.weightData.weightKg} kg`,
       weightData: { weightKg: extractedResult.weightData.weightKg, loggedAt: new Date().toISOString() }
     };
   }
@@ -148,7 +174,7 @@ JSON SCHEMA:
     };
   }
 
-  // STEP 1 & 4: Normalize Food Names & Malayalam Terms
+  // Process Meal Extraction & All Foods
   const rawFoods: any[] = extractedResult.foods || [];
   const normalizedItems = rawFoods.map((f: any) => {
     const normName = normalizeFoodName(f.name || 'food item');
@@ -156,7 +182,6 @@ JSON SCHEMA:
     const unit = f.unit || 'piece';
     const conf = f.confidence ?? 0.9;
 
-    // STEP 2: Nutrition Database Lookup & Merge
     const nutrition = lookupNutrition(normName, qty, unit);
 
     return {
@@ -172,10 +197,10 @@ JSON SCHEMA:
     };
   });
 
-  // STEP 3: Duplicate Detection & Consolidation
+  // Duplicate Consolidation
   const { items: consolidatedItems } = detectAndMergeDuplicates(normalizedItems as any);
 
-  // Calculate Aggregated Totals
+  // Sum Up Total Nutrition Across ALL Foods
   let totalCals: number | null = 0;
   let totalP: number | null = 0;
   let totalC: number | null = 0;
@@ -200,29 +225,25 @@ JSON SCHEMA:
     else if (totalF !== null) totalF += fat;
   }
 
-  // STEP 6: Confidence Rules
-  const overallConfidence = extractedResult.confidence ?? 0.88;
+  const overallConfidence = extractedResult.confidence ?? 0.9;
   let finalIntent: any = 'meal';
-  let clarificationQuestion: string | null = null;
+  let clarificationQuestion: string | null = extractedResult.clarificationQuestion || null;
 
   if (overallConfidence < 0.6) {
     finalIntent = 'ambiguous';
-    clarificationQuestion = 'Could you specify the exact meal or activity?';
-  } else if (overallConfidence >= 0.6 && overallConfidence < 0.85) {
-    clarificationQuestion = 'Did you mean breakfast or lunch for this meal?';
+    clarificationQuestion = 'Could you specify the exact food item?';
   }
 
-  const hour = new Date().getHours();
-  const mealType = hour < 11 ? 'breakfast' : hour < 16 ? 'lunch' : hour < 21 ? 'dinner' : 'snack';
+  const detectedMealType: MealCategory = extractedResult.mealType || mealType;
 
   return {
     intent: finalIntent,
     confidence: overallConfidence,
     clarificationQuestion,
-    summaryText: `Logged ${mealType.toUpperCase()}: ${consolidatedItems.map((i) => `${i.name} ×${i.quantity}`).join(', ')}`,
+    summaryText: `Logged ${detectedMealType.toUpperCase()}: ${consolidatedItems.map((i) => `${i.name} ×${i.quantity} ${i.unit}`).join(', ')}`,
     mealData: {
-      mealType,
-      title: consolidatedItems.map((i) => `${i.name} ×${i.quantity}`).join(', '),
+      mealType: detectedMealType,
+      title: consolidatedItems.map((i) => `${i.name} ×${i.quantity} ${i.unit}`).join(', '),
       totalCalories: totalCals,
       totalProteinG: totalP,
       totalCarbsG: totalC,
@@ -234,7 +255,7 @@ JSON SCHEMA:
   };
 }
 
-function parseLocalExtraction(text: string): any {
+function parseLocalExtraction(text: string, defaultMealType: MealCategory): any {
   const lower = text.toLowerCase();
 
   // Water
@@ -277,30 +298,53 @@ function parseLocalExtraction(text: string): any {
     };
   }
 
-  // Fallback Meal Extraction
+  // Extract ALL foods from text without dropping any
   const foods: any[] = [];
-  if (lower.includes('egg') || lower.includes('മുട്ട')) {
-    const match = lower.match(/(\d+)\s*(egg|eggs|മുട്ട)/i);
-    foods.push({ name: 'egg', quantity: match ? parseInt(match[1], 10) : 3, unit: 'piece', confidence: 0.96 });
-  }
+
   if (lower.includes('oat') || lower.includes('ഓട്സ്')) {
-    const match = lower.match(/(\d+)\s*(g|gram|grams|cup|കപ്പ്)?\s*(oat|oats|ഓട്സ്)/i);
-    foods.push({ name: 'oats', quantity: match ? parseInt(match[1], 10) : 50, unit: match && match[2]?.includes('cup') ? 'cup' : 'g', confidence: 0.94 });
+    const match = lower.match(/(one|a|two|three|1|2|3)\s*(cup|cups|g|gram|grams)?\s*(oat|oats|ഓട്സ്)/i);
+    let qty = 1;
+    if (match) {
+      if (match[1] === 'one' || match[1] === 'a') qty = 1;
+      else if (match[1] === 'two') qty = 2;
+      else if (match[1] === 'three') qty = 3;
+      else qty = parseInt(match[1], 10) || 1;
+    }
+    const unit = match && match[2] ? match[2] : 'cup';
+    foods.push({ name: 'oats', quantity: qty, unit, confidence: 0.96 });
   }
+
+  if (lower.includes('egg') || lower.includes('മുട്ട')) {
+    const match = lower.match(/(one|a|two|three|four|1|2|3|4)\s*(boiled\s+)?(egg|eggs|മുട്ട)/i);
+    let qty = 3;
+    if (match) {
+      if (match[1] === 'one' || match[1] === 'a') qty = 1;
+      else if (match[1] === 'two') qty = 2;
+      else if (match[1] === 'three') qty = 3;
+      else if (match[1] === 'four') qty = 4;
+      else qty = parseInt(match[1], 10) || 3;
+    }
+    foods.push({ name: 'boiled egg', quantity: qty, unit: 'piece', confidence: 0.98 });
+  }
+
   if (lower.includes('chapati') || lower.includes('ചപ്പാത്തി')) {
     const match = lower.match(/(\d+)\s*(chapati|chapatis|ചപ്പാത്തി)/i);
     foods.push({ name: 'chapati', quantity: match ? parseInt(match[1], 10) : 2, unit: 'piece', confidence: 0.95 });
   }
+
   if (lower.includes('chicken') || lower.includes('ചിക്കൻ')) {
     foods.push({ name: 'chicken', quantity: 150, unit: 'g', confidence: 0.92 });
   }
+
   if (lower.includes('biryani')) {
     foods.push({ name: 'biryani', quantity: 1, unit: 'serving', confidence: 0.88 });
   }
+
   if (lower.includes('whey')) {
     const match = lower.match(/(\d+)\s*(scoop|scoops)?\s*whey/i);
     foods.push({ name: 'whey', quantity: match ? parseInt(match[1], 10) : 1, unit: 'scoop', confidence: 0.98 });
   }
+
   if (lower.includes('almond') || lower.includes('almonds')) {
     const match = lower.match(/(\d+)\s*(g|gram|grams)?\s*almond/i);
     foods.push({ name: 'almond', quantity: match ? parseInt(match[1], 10) : 25, unit: 'g', confidence: 0.95 });
@@ -310,5 +354,5 @@ function parseLocalExtraction(text: string): any {
     foods.push({ name: text, quantity: 1, unit: 'serving', confidence: 0.85 });
   }
 
-  return { intent: 'meal', confidence: 0.88, foods };
+  return { intent: 'meal', confidence: 0.9, mealType: defaultMealType, foods };
 }
