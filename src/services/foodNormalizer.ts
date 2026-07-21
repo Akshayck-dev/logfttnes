@@ -6,6 +6,9 @@ export function normalizeFoodName(foodName: string): string {
   // Translate Malayalam terms if present
   clean = translateMalayalamToEnglish(clean);
 
+  // Remove common filler prefix/suffix words if accidentally captured in food name
+  clean = clean.replace(/^(morning|mronig|mrng|breakfast|lunch|dinner|evening|i ate|ate|had)\s+/i, '');
+
   // Plural to Singular Normalization
   if (clean.endsWith('boiled eggs')) clean = 'boiled egg';
   else if (clean.endsWith('eggs')) clean = 'egg';
@@ -18,5 +21,5 @@ export function normalizeFoodName(foodName: string): string {
   else if (clean.endsWith('apples')) clean = 'apple';
   else if (clean.endsWith('almonds')) clean = 'almond';
 
-  return clean;
+  return clean.trim();
 }

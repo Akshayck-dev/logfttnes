@@ -38,7 +38,14 @@ export async function parseWithGeminiFlash(transcript: string): Promise<AiDetect
 
   // 2. Strict Time-of-Day Meal Type Determination
   let mealType: MealCategory = 'lunch';
-  if (lowerText.includes('morning') || lowerText.includes('breakfast') || lowerText.includes('രാവിലെ')) {
+  if (
+    lowerText.includes('morning') ||
+    lowerText.includes('mronig') ||
+    lowerText.includes('mrng') ||
+    lowerText.includes('mornin') ||
+    lowerText.includes('breakfast') ||
+    lowerText.includes('രാവിലെ')
+  ) {
     mealType = 'breakfast';
   } else if (lowerText.includes('lunch') || lowerText.includes('noon') || lowerText.includes('afternoon') || lowerText.includes('ഉച്ചയ്ക്ക്')) {
     mealType = 'lunch';

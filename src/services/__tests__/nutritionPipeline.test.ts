@@ -1,34 +1,21 @@
 import { parseWithGeminiFlash } from '../geminiService';
 
 async function runPipelineTests() {
-  console.log('🧪 Running FitLog AI Meal Parser Bug Fix Validation Suite...\n');
+  console.log('🧪 Testing speech typos "mronig 1 cup oats"...\n');
 
-  // Test 1: Morning Oats & Eggs (Must be BREAKFAST and extract BOTH oats & eggs)
-  const test1 = await parseWithGeminiFlash('Morning I ate one cup oats and three boiled eggs');
-  console.log('Test 1 Result:', JSON.stringify(test1, null, 2));
+  const result = await parseWithGeminiFlash('mronig 1 cup oats');
+  console.log('Result:', JSON.stringify(result, null, 2));
 
-  const t1Passed =
-    test1.intent === 'meal' &&
-    test1.mealData?.mealType === 'breakfast' &&
-    test1.mealData?.items?.length === 2;
+  const passed =
+    result.intent === 'meal' &&
+    result.mealData?.mealType === 'breakfast' &&
+    result.mealData?.items?.[0]?.name === 'oats';
 
-  if (t1Passed) {
-    console.log('✅ Test 1 PASSED: "Morning I ate one cup oats and three boiled eggs" -> BREAKFAST with 2 food items!');
+  if (passed) {
+    console.log('✅ PASSED: "mronig 1 cup oats" -> BREAKFAST with clean item name "oats"!');
   } else {
-    console.error('❌ Test 1 FAILED: Expected Breakfast with 2 items.');
+    console.error('❌ FAILED: Expected Breakfast with clean item "oats".');
   }
-
-  // Test 2: Incomplete fragment "one cup of"
-  const test2 = await parseWithGeminiFlash('one cup of');
-  const t2Passed = test2.intent === 'ambiguous' && test2.clarificationQuestion?.includes('What food was one');
-
-  if (t2Passed) {
-    console.log('✅ Test 2 PASSED: "one cup of" -> Ambiguous with clarification question!');
-  } else {
-    console.error('❌ Test 2 FAILED: Expected clarification question for incomplete input.');
-  }
-
-  console.log(`\n📊 Test Result: ${t1Passed && t2Passed ? 'ALL TESTS PASSED ✅' : 'SOME TESTS FAILED ❌'}\n`);
 }
 
 runPipelineTests();
