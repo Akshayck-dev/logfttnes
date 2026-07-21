@@ -18,7 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
-import { parseNaturalLanguageInput } from '../../lib/aiParser';
+import { parseNaturalLanguageWithGemini } from '../../lib/aiParser';
 import { AiDetectedEntity } from '../../types';
 import { useFitnessStore } from '../../stores/useFitnessStore';
 
@@ -41,11 +41,11 @@ export const AiQuickLogSheet: React.FC<AiQuickLogSheetProps> = ({ isOpen, onClos
     }
   }, [transcript, isListening]);
 
-  const handleProcessPrompt = (textOverride?: string) => {
+  const handleProcessPrompt = async (textOverride?: string) => {
     const textToParse = textOverride || promptText;
     if (!textToParse.trim()) return;
 
-    const entity = parseNaturalLanguageInput(textToParse);
+    const entity = await parseNaturalLanguageWithGemini(textToParse);
     setDetectedEntity(entity);
   };
 

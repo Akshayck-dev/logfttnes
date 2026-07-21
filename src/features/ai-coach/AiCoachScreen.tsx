@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useFitnessStore } from '../../stores/useFitnessStore';
 import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
-import { parseNaturalLanguageInput } from '../../lib/aiParser';
+import { parseNaturalLanguageWithGemini } from '../../lib/aiParser';
 import { AiDetectedEntity } from '../../types';
 
 interface Message {
@@ -44,7 +44,7 @@ export const AiCoachScreen: React.FC = () => {
     }
   }, [transcript, isListening]);
 
-  const handleSendPrompt = (textToSend?: string) => {
+  const handleSendPrompt = async (textToSend?: string) => {
     const query = textToSend || inputPrompt;
     if (!query.trim()) return;
 
@@ -58,8 +58,8 @@ export const AiCoachScreen: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInputPrompt('');
 
-    // Parse Intent via AI Engine
-    const entity = parseNaturalLanguageInput(query);
+    // Parse Intent via AI Engine (Gemini / Local fallback)
+    const entity = await parseNaturalLanguageWithGemini(query);
     addAiLog(query, entity);
 
     // Automatically apply intent to fitness stores

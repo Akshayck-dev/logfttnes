@@ -1,5 +1,86 @@
 import { AiDetectedEntity } from '../types';
 
+const getGeminiApiKey = () => {
+  return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
+};
+
+export async function parseNaturalLanguageWithGemini(input: string): Promise<AiDetectedEntity> {
+  const apiKey = getGeminiApiKey();
+  const text = (input || '').trim();
+
+  if (!text) {
+    return {
+      intent: 'unknown',
+      confidence: 0.1,
+      summaryText: 'No input text provided.'
+    };
+  }
+
+  // If Gemini API key is available, call Gemini API
+  if (apiKey && apiKey !== 'placeholder') {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text: `You are FitLog AI Nutrition and Fitness Parser.
+Parse this natural language transcript: "${text}"
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "intent": "meal" | "workout" | "weight" | "water" | "sleep",
+  "confidence": 0.95,
+  "summaryText": "Brief human readable summary",
+  "mealData": { "mealType": "breakfast"|"lunch"|"dinner"|"snack", "title": string, "totalCalories": number, "totalProteinG": number, "totalCarbsG": number, "totalFatG": number, "totalFiberG": number },
+  "workoutData": { "title": string, "category": "strength"|"cardio"|"hiit"|"yoga", "durationMinutes": number, "caloriesBurned": number },
+  "weightData": { "weightKg": number },
+  "waterData": { "amountMl": number },
+  "sleepData": { "durationHours": number, "qualityScore": number }
+}`
+                  }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json'
+            }
+          })
+        }
+      );
+
+      if (response.ok) {
+        const json = await response.json();
+        const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const parsed = JSON.parse(rawText);
+          return {
+            intent: parsed.intent || 'meal',
+            confidence: parsed.confidence || 0.9,
+            summaryText: parsed.summaryText || `Processed: ${text}`,
+            mealData: parsed.mealData,
+            workoutData: parsed.workoutData,
+            weightData: parsed.weightData,
+            waterData: parsed.waterData,
+            sleepData: parsed.sleepData
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Gemini API call fallback to local parser:', err);
+    }
+  }
+
+  // Fallback to local NLP parser
+  return parseNaturalLanguageInput(input);
+}
+
 export function parseNaturalLanguageInput(input: string): AiDetectedEntity {
   const text = (input || '').trim().toLowerCase();
   
@@ -151,7 +232,6 @@ export function parseNaturalLanguageInput(input: string): AiDetectedEntity {
   if (text.includes('dinner')) mealType = 'dinner';
   if (text.includes('snack')) mealType = 'snack';
 
-  // Estimate macros based on common keywords
   let cals = 450;
   let protein = 32;
   let carbs = 45;
@@ -196,5 +276,5 @@ export function parseNaturalLanguageInput(input: string): AiDetectedEntity {
 }
 
 export function parseTranscriptToJSON(transcript: string) {
-  return parseNaturalLanguageInput(transcript);
+  return parseNaturalLanguageWithGemini(transcript);
 }
