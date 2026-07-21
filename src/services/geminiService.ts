@@ -1,70 +1,63 @@
 import { AiDetectedEntity } from '../types';
+import { normalizeFoodName } from './foodNormalizer';
+import { detectAndMergeDuplicates } from './duplicateDetector';
+import { lookupNutrition } from './nutritionService';
 
 const getApiKey = () => {
-  return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
+  }
+  const globalEnv = (globalThis as any).process?.env;
+  return globalEnv?.VITE_GEMINI_API_KEY || globalEnv?.GEMINI_API_KEY || '';
 };
 
 export async function parseWithGeminiFlash(transcript: string): Promise<AiDetectedEntity> {
   const apiKey = getApiKey();
-  const text = (transcript || '').trim();
+  const rawText = (transcript || '').trim();
 
-  if (!text) {
+  if (!rawText) {
     return {
       intent: 'unknown',
       confidence: 0,
-      summaryText: 'No text provided.'
+      summaryText: 'No text input provided.'
     };
   }
 
-  // System Prompt with Strict Quantities, Per-Item Confidence, and NO Fake Calories
-  const systemPrompt = `You are FitLog AI's Precision Food & Fitness Entity Parser.
+  // System Prompt for Gemini 2.5 Flash / 1.5 Flash
+  const systemPrompt = `You are FitLog AI's Food & Fitness Entity Extractor.
 
-Analyze this natural language input: "${text}"
+Analyze this natural language input (supporting English and Malayalam): "${rawText}"
 
 STRICT RULES:
-1. Identify exact foods and quantities mentioned (e.g., "3 eggs", "50g oats", "1 cup rice").
-2. Do NOT invent calories or macros. If calories/macros are uncertain, return them as null.
-3. Return confidence score (0.0 to 1.0) for each detected food item.
-4. If overall confidence < 0.75 or input is ambiguous, set "intent": "ambiguous" and provide ONE clarification question in "clarificationQuestion".
-5. Return ONLY raw valid JSON. Never output Markdown blocks, explanations, or prose text.
+1. Extract ONLY: Food Name, Quantity, Unit, Meal Type, and Item Confidence (0.0 to 1.0).
+2. DO NOT invent calories, protein, carbs, fat, or fiber. Set them as null.
+3. If input is a workout, extract title, durationMinutes, category (strength/cardio/hiit/yoga).
+4. If input is water, extract amountMl.
+5. If input is weight, extract weightKg.
+6. If input is sleep, extract durationHours.
+7. Return ONLY valid raw JSON. Never output Markdown blocks or explanations.
 
 JSON SCHEMA:
 {
   "intent": "meal" | "workout" | "weight" | "water" | "sleep" | "ambiguous",
   "confidence": number,
-  "summaryText": "Human readable log summary",
+  "summaryText": string,
   "clarificationQuestion": string | null,
-  "mealData": {
-    "mealType": "breakfast" | "lunch" | "dinner" | "snack",
-    "title": string,
-    "totalCalories": number | null,
-    "totalProteinG": number | null,
-    "totalCarbsG": number | null,
-    "totalFatG": number | null,
-    "totalFiberG": number | null,
-    "items": [
-      {
-        "name": string,
-        "quantity": number,
-        "unit": string,
-        "calories": number | null,
-        "proteinG": number | null,
-        "carbsG": number | null,
-        "fatG": number | null,
-        "confidence": number
-      }
-    ]
-  },
-  "workoutData": {
-    "title": string,
-    "category": "strength" | "cardio" | "hiit" | "yoga",
-    "durationMinutes": number,
-    "caloriesBurned": number | null
-  },
+  "foods": [
+    {
+      "name": string,
+      "quantity": number,
+      "unit": string,
+      "confidence": number
+    }
+  ],
+  "workoutData": { "title": string, "category": "strength"|"cardio"|"hiit"|"yoga", "durationMinutes": number },
   "weightData": { "weightKg": number },
   "waterData": { "amountMl": number },
-  "sleepData": { "durationHours": number, "qualityScore": number }
+  "sleepData": { "durationHours": number }
 }`;
+
+  let extractedResult: any = null;
 
   if (apiKey && apiKey !== 'placeholder') {
     try {
@@ -90,31 +83,158 @@ JSON SCHEMA:
 
       if (response.ok) {
         const data = await response.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          return {
-            intent: parsed.intent || 'meal',
-            confidence: parsed.confidence ?? 0.9,
-            summaryText: parsed.summaryText || `Logged: ${text}`,
-            mealData: parsed.mealData,
-            workoutData: parsed.workoutData,
-            weightData: parsed.weightData,
-            waterData: parsed.waterData,
-            sleepData: parsed.sleepData
-          };
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          extractedResult = JSON.parse(text);
         }
       }
-    } catch (error) {
-      console.warn('Gemini Flash API request failed, falling back:', error);
+    } catch (err) {
+      console.warn('Gemini API request failed, running local fallback:', err);
     }
   }
 
-  // Local Fallback Parser
-  return parseLocalFallback(text);
+  // Fallback to local parsing if Gemini is unconfigured or failed
+  if (!extractedResult) {
+    extractedResult = parseLocalExtraction(rawText);
+  }
+
+  // Handle Non-Meal Intents (Water, Weight, Sleep, Workout)
+  if (extractedResult.intent === 'water' && extractedResult.waterData) {
+    return {
+      intent: 'water',
+      confidence: extractedResult.confidence ?? 0.95,
+      summaryText: `Logged ${extractedResult.waterData.amountMl}ml water`,
+      waterData: { amountMl: extractedResult.waterData.amountMl, loggedAt: new Date().toISOString() }
+    };
+  }
+
+  if (extractedResult.intent === 'weight' && extractedResult.weightData) {
+    return {
+      intent: 'weight',
+      confidence: extractedResult.confidence ?? 0.95,
+      summaryText: `Recorded current weight: ${extractedResult.weightData.weightKg} kg`,
+      weightData: { weightKg: extractedResult.weightData.weightKg, loggedAt: new Date().toISOString() }
+    };
+  }
+
+  if (extractedResult.intent === 'sleep' && extractedResult.sleepData) {
+    return {
+      intent: 'sleep',
+      confidence: extractedResult.confidence ?? 0.9,
+      summaryText: `Logged ${extractedResult.sleepData.durationHours} hrs sleep`,
+      sleepData: {
+        durationHours: extractedResult.sleepData.durationHours,
+        qualityScore: 4,
+        sleepTime: '',
+        wakeTime: '',
+        loggedAt: new Date().toISOString().split('T')[0]
+      }
+    };
+  }
+
+  if (extractedResult.intent === 'workout' && extractedResult.workoutData) {
+    return {
+      intent: 'workout',
+      confidence: extractedResult.confidence ?? 0.92,
+      summaryText: `Logged ${extractedResult.workoutData.title} (${extractedResult.workoutData.durationMinutes || 45} mins)`,
+      workoutData: {
+        title: extractedResult.workoutData.title || 'Workout Session',
+        category: extractedResult.workoutData.category || 'strength',
+        durationMinutes: extractedResult.workoutData.durationMinutes || 45,
+        caloriesBurned: Math.round((extractedResult.workoutData.durationMinutes || 45) * 8),
+        exercises: [],
+        loggedAt: new Date().toISOString()
+      }
+    };
+  }
+
+  // STEP 1 & 4: Normalize Food Names & Malayalam Terms
+  const rawFoods: any[] = extractedResult.foods || [];
+  const normalizedItems = rawFoods.map((f: any) => {
+    const normName = normalizeFoodName(f.name || 'food item');
+    const qty = f.quantity || 1;
+    const unit = f.unit || 'piece';
+    const conf = f.confidence ?? 0.9;
+
+    // STEP 2: Nutrition Database Lookup & Merge
+    const nutrition = lookupNutrition(normName, qty, unit);
+
+    return {
+      name: normName,
+      quantity: qty,
+      unit,
+      confidence: conf,
+      calories: nutrition.calories,
+      proteinG: nutrition.proteinG,
+      carbsG: nutrition.carbsG,
+      fatG: nutrition.fatG,
+      fiberG: nutrition.fiberG
+    };
+  });
+
+  // STEP 3: Duplicate Detection & Consolidation
+  const { items: consolidatedItems } = detectAndMergeDuplicates(normalizedItems as any);
+
+  // Calculate Aggregated Totals
+  let totalCals: number | null = 0;
+  let totalP: number | null = 0;
+  let totalC: number | null = 0;
+  let totalF: number | null = 0;
+
+  for (const item of consolidatedItems) {
+    const cals = item.calories ?? null;
+    const prot = item.proteinG ?? null;
+    const carbs = item.carbsG ?? null;
+    const fat = item.fatG ?? null;
+
+    if (cals === null) totalCals = null;
+    else if (totalCals !== null) totalCals += cals;
+
+    if (prot === null) totalP = null;
+    else if (totalP !== null) totalP += prot;
+
+    if (carbs === null) totalC = null;
+    else if (totalC !== null) totalC += carbs;
+
+    if (fat === null) totalF = null;
+    else if (totalF !== null) totalF += fat;
+  }
+
+  // STEP 6: Confidence Rules
+  const overallConfidence = extractedResult.confidence ?? 0.88;
+  let finalIntent: any = 'meal';
+  let clarificationQuestion: string | null = null;
+
+  if (overallConfidence < 0.6) {
+    finalIntent = 'ambiguous';
+    clarificationQuestion = 'Could you specify the exact meal or activity?';
+  } else if (overallConfidence >= 0.6 && overallConfidence < 0.85) {
+    clarificationQuestion = 'Did you mean breakfast or lunch for this meal?';
+  }
+
+  const hour = new Date().getHours();
+  const mealType = hour < 11 ? 'breakfast' : hour < 16 ? 'lunch' : hour < 21 ? 'dinner' : 'snack';
+
+  return {
+    intent: finalIntent,
+    confidence: overallConfidence,
+    clarificationQuestion,
+    summaryText: `Logged ${mealType.toUpperCase()}: ${consolidatedItems.map((i) => `${i.name} ×${i.quantity}`).join(', ')}`,
+    mealData: {
+      mealType,
+      title: consolidatedItems.map((i) => `${i.name} ×${i.quantity}`).join(', '),
+      totalCalories: totalCals,
+      totalProteinG: totalP,
+      totalCarbsG: totalC,
+      totalFatG: totalF,
+      totalFiberG: 5,
+      items: consolidatedItems,
+      loggedAt: new Date().toISOString()
+    }
+  };
 }
 
-function parseLocalFallback(text: string): AiDetectedEntity {
+function parseLocalExtraction(text: string): any {
   const lower = text.toLowerCase();
 
   // Water
@@ -126,12 +246,7 @@ function parseLocalFallback(text: string): AiDetectedEntity {
       if (match[3].startsWith('l')) val = val * 1000;
       amountMl = Math.round(val);
     }
-    return {
-      intent: 'water',
-      confidence: 0.95,
-      summaryText: `Logged ${amountMl}ml water`,
-      waterData: { amountMl, loggedAt: new Date().toISOString() }
-    };
+    return { intent: 'water', confidence: 0.95, waterData: { amountMl } };
   }
 
   // Weight
@@ -139,12 +254,7 @@ function parseLocalFallback(text: string): AiDetectedEntity {
     let weightKg = 75;
     const match = lower.match(/(\d+(\.\d+)?)/);
     if (match) weightKg = parseFloat(match[1]);
-    return {
-      intent: 'weight',
-      confidence: 0.92,
-      summaryText: `Recorded weight: ${weightKg} kg`,
-      weightData: { weightKg, loggedAt: new Date().toISOString() }
-    };
+    return { intent: 'weight', confidence: 0.92, weightData: { weightKg } };
   }
 
   // Sleep
@@ -152,60 +262,53 @@ function parseLocalFallback(text: string): AiDetectedEntity {
     let durationHours = 7;
     const match = lower.match(/(\d+(\.\d+)?)/);
     if (match) durationHours = parseFloat(match[1]);
-    return {
-      intent: 'sleep',
-      confidence: 0.9,
-      summaryText: `Logged ${durationHours} hrs sleep`,
-      sleepData: { durationHours, qualityScore: 4, sleepTime: '', wakeTime: '', loggedAt: new Date().toISOString().split('T')[0] }
-    };
+    return { intent: 'sleep', confidence: 0.9, sleepData: { durationHours } };
   }
 
   // Workout
-  if (lower.includes('workout') || lower.includes('chest') || lower.includes('run') || lower.includes('squat')) {
+  if (lower.includes('workout') || lower.includes('treadmill') || lower.includes('chest') || lower.includes('run')) {
     let durationMinutes = 45;
     const match = lower.match(/(\d+)\s*(min|mins|minutes)/i);
     if (match) durationMinutes = parseInt(match[1], 10);
     return {
       intent: 'workout',
       confidence: 0.94,
-      summaryText: `Logged workout (${durationMinutes} mins)`,
-      workoutData: {
-        title: 'Workout Session',
-        category: 'strength',
-        durationMinutes,
-        caloriesBurned: null,
-        loggedAt: new Date().toISOString(),
-        exercises: []
-      }
+      workoutData: { title: lower.includes('treadmill') ? 'Treadmill Run' : 'Workout Session', category: 'strength', durationMinutes }
     };
   }
 
-  // Meal Fallback
-  return {
-    intent: 'meal',
-    confidence: 0.85,
-    summaryText: `Logged Meal: "${text}"`,
-    mealData: {
-      mealType: 'lunch',
-      title: text.charAt(0).toUpperCase() + text.slice(1),
-      totalCalories: null,
-      totalProteinG: null,
-      totalCarbsG: null,
-      totalFatG: null,
-      totalFiberG: null,
-      loggedAt: new Date().toISOString(),
-      items: [
-        {
-          name: text,
-          quantity: 1,
-          unit: 'serving',
-          calories: null,
-          proteinG: null,
-          carbsG: null,
-          fatG: null,
-          confidence: 0.85
-        }
-      ]
-    }
-  };
+  // Fallback Meal Extraction
+  const foods: any[] = [];
+  if (lower.includes('egg') || lower.includes('മുട്ട')) {
+    const match = lower.match(/(\d+)\s*(egg|eggs|മുട്ട)/i);
+    foods.push({ name: 'egg', quantity: match ? parseInt(match[1], 10) : 3, unit: 'piece', confidence: 0.96 });
+  }
+  if (lower.includes('oat') || lower.includes('ഓട്സ്')) {
+    const match = lower.match(/(\d+)\s*(g|gram|grams|cup|കപ്പ്)?\s*(oat|oats|ഓട്സ്)/i);
+    foods.push({ name: 'oats', quantity: match ? parseInt(match[1], 10) : 50, unit: match && match[2]?.includes('cup') ? 'cup' : 'g', confidence: 0.94 });
+  }
+  if (lower.includes('chapati') || lower.includes('ചപ്പാത്തി')) {
+    const match = lower.match(/(\d+)\s*(chapati|chapatis|ചപ്പാത്തി)/i);
+    foods.push({ name: 'chapati', quantity: match ? parseInt(match[1], 10) : 2, unit: 'piece', confidence: 0.95 });
+  }
+  if (lower.includes('chicken') || lower.includes('ചിക്കൻ')) {
+    foods.push({ name: 'chicken', quantity: 150, unit: 'g', confidence: 0.92 });
+  }
+  if (lower.includes('biryani')) {
+    foods.push({ name: 'biryani', quantity: 1, unit: 'serving', confidence: 0.88 });
+  }
+  if (lower.includes('whey')) {
+    const match = lower.match(/(\d+)\s*(scoop|scoops)?\s*whey/i);
+    foods.push({ name: 'whey', quantity: match ? parseInt(match[1], 10) : 1, unit: 'scoop', confidence: 0.98 });
+  }
+  if (lower.includes('almond') || lower.includes('almonds')) {
+    const match = lower.match(/(\d+)\s*(g|gram|grams)?\s*almond/i);
+    foods.push({ name: 'almond', quantity: match ? parseInt(match[1], 10) : 25, unit: 'g', confidence: 0.95 });
+  }
+
+  if (foods.length === 0) {
+    foods.push({ name: text, quantity: 1, unit: 'serving', confidence: 0.85 });
+  }
+
+  return { intent: 'meal', confidence: 0.88, foods };
 }
