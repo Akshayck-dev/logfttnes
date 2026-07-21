@@ -20,7 +20,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenAiLog }) => {
   ];
 
   return (
-    <nav className="fixed bottom-3 left-4 right-4 z-40 glass-nav max-w-md mx-auto sm:max-w-lg md:max-w-xl rounded-full border border-white/15 px-3 py-2 shadow-2xl">
+    <nav
+      style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+      className="fixed left-4 right-4 z-40 glass-nav max-w-md mx-auto sm:max-w-lg md:max-w-xl rounded-full border border-white/15 px-3 py-2 shadow-2xl"
+    >
       <div className="flex items-center justify-around relative">
         {navItems.map((item) => {
           if (item.isCenterButton) {
@@ -30,6 +33,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenAiLog }) => {
                 whileTap={{ scale: 0.9 }}
                 whileHover={{ scale: 1.05 }}
                 onClick={onOpenAiLog}
+                aria-label="Open FitLog AI Quick Log"
                 className="relative -top-5 w-14 h-14 rounded-full gradient-purple text-white flex items-center justify-center shadow-2xl border-4 border-black group"
                 title="Open FitLog AI Quick Log"
               >
@@ -45,6 +49,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onOpenAiLog }) => {
             <NavLink
               key={item.path}
               to={item.path}
+              aria-label={item.label}
               className={({ isActive }) =>
                 cn(
                   'relative flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300',

@@ -15,10 +15,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onOpenAi }) => {
   const isOnline = navigator.onLine;
 
   return (
-    <header className="sticky top-0 z-40 w-full glass-nav px-4 py-3 flex items-center justify-between">
+    <header
+      style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
+      className="sticky top-0 z-40 w-full glass-nav px-4 pb-3 flex items-center justify-between"
+    >
       {/* Profile Info */}
       <div 
         onClick={() => navigate('/settings')}
+        role="button"
+        tabIndex={0}
+        aria-label="Open User Profile Settings"
         className="flex items-center gap-3 cursor-pointer group"
       >
         <div className="relative">
@@ -57,6 +63,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onOpenAi }) => {
         {/* AI Assistant Quick Trigger */}
         <button
           onClick={() => navigate('/ai-coach')}
+          aria-label="Open FitLog AI Assistant"
           className="p-2 rounded-full gradient-purple text-white shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center"
           title="Open FitLog AI Assistant"
         >

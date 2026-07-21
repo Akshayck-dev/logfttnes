@@ -1,0 +1,33 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const svgContent = `
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5E36" />
+      <stop offset="50%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#00F2FE" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#bg)" />
+  <path d="M160 256 L220 316 L352 184" fill="none" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="24" />
+</svg>
+`;
+
+const publicDir = path.join(__dirname, '..', 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
+fs.writeFileSync(path.join(publicDir, 'apple-touch-icon.svg'), svgContent.trim());
+fs.writeFileSync(path.join(publicDir, 'favicon.svg'), svgContent.trim());
+fs.writeFileSync(path.join(publicDir, 'pwa-192x192.svg'), svgContent.trim());
+fs.writeFileSync(path.join(publicDir, 'pwa-512x512.svg'), svgContent.trim());
+
+console.log('SVG icons generated successfully in public directory.');
