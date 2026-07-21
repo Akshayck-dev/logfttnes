@@ -1,8 +1,16 @@
 import { AiDetectedEntity } from '../types';
 
 export function parseNaturalLanguageInput(input: string): AiDetectedEntity {
-  const text = input.trim().toLowerCase();
+  const text = (input || '').trim().toLowerCase();
   
+  if (!text) {
+    return {
+      intent: 'unknown',
+      confidence: 0.1,
+      summaryText: 'Could not detect entity. Please provide input text or speech.'
+    };
+  }
+
   // 1. Detect Water Intent
   const waterMatch = text.match(/(\d+)\s*(ml|l|liter|liters|ounces|oz)/i);
   if (waterMatch || text.includes('water') || text.includes('drank') || text.includes('hydrated')) {
@@ -185,4 +193,8 @@ export function parseNaturalLanguageInput(input: string): AiDetectedEntity {
       ]
     }
   };
+}
+
+export function parseTranscriptToJSON(transcript: string) {
+  return parseNaturalLanguageInput(transcript);
 }
