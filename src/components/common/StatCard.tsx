@@ -33,41 +33,42 @@ export const StatCard: React.FC<StatCardProps> = ({
     <GlassCard
       interactive={Boolean(onClick)}
       onClick={onClick}
-      className="flex flex-col justify-between h-full group"
+      aria-label={`${title}: ${value} ${unit || ''}`}
+      className="flex flex-col justify-between h-full min-h-[140px] group border-white/10 hover:border-white/20"
     >
       <div className="flex items-start justify-between">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-zinc-400">
             {title}
           </span>
           <div className="flex items-baseline gap-1 mt-1">
-            <span className="text-2xl font-extrabold tracking-tight text-white">{value}</span>
+            <span className="text-2xl font-black tracking-tight text-white">{value}</span>
             {unit && <span className="text-xs font-semibold text-zinc-400">{unit}</span>}
           </div>
         </div>
-        <div className={cn('p-2.5 rounded-2xl text-white shadow-lg', accentGradient)}>
+        <div className={cn('p-2.5 rounded-2xl text-white shadow-lg shrink-0', accentGradient)}>
           {icon}
         </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 space-y-1.5">
         {target && (
-          <div className="flex items-center justify-between text-[11px] font-medium text-zinc-400 mb-1.5">
-            <span>Progress</span>
-            <span>
+          <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+            <span>Goal Progress</span>
+            <span className="text-white font-extrabold">
               {clampedPct}% ({target} {unit})
             </span>
           </div>
         )}
         {progressPct !== undefined && (
-          <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden p-0.5">
             <div
               className={cn('h-full transition-all duration-700 ease-out rounded-full', barColor)}
               style={{ width: `${clampedPct}%` }}
             />
           </div>
         )}
-        {subtitle && <p className="text-[11px] font-medium text-zinc-400 mt-2">{subtitle}</p>}
+        {subtitle && <p className="text-[11px] font-semibold text-zinc-400">{subtitle}</p>}
       </div>
     </GlassCard>
   );
