@@ -1,25 +1,43 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Utensils, Dumbbell, Activity, Sparkles, Settings } from 'lucide-react';
+import { Home, BookOpen, Plus, Activity, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
-export const BottomNav: React.FC = () => {
+interface BottomNavProps {
+  onOpenAiLog: () => void;
+}
+
+export const BottomNav: React.FC<BottomNavProps> = ({ onOpenAiLog }) => {
   const location = useLocation();
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
-    { path: '/meals', label: 'Meals', icon: Utensils },
-    { path: '/workouts', label: 'Workouts', icon: Dumbbell },
+    { path: '/journal', label: 'Journal', icon: BookOpen },
+    { path: 'ai-trigger', label: 'Quick Log', icon: Plus, isCenterButton: true },
     { path: '/progress', label: 'Progress', icon: Activity },
-    { path: '/ai-coach', label: 'AI Coach', icon: Sparkles, highlight: true },
-    { path: '/settings', label: 'Settings', icon: Settings }
+    { path: '/settings', label: 'Profile', icon: User }
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 glass-nav px-3 py-2 max-w-md mx-auto sm:max-w-lg md:max-w-2xl rounded-t-3xl sm:rounded-3xl sm:bottom-4 border-t sm:border border-white/10 shadow-2xl">
-      <div className="flex items-center justify-around">
+    <nav className="fixed bottom-3 left-4 right-4 z-40 glass-nav max-w-md mx-auto sm:max-w-lg md:max-w-xl rounded-full border border-white/15 px-3 py-2 shadow-2xl">
+      <div className="flex items-center justify-around relative">
         {navItems.map((item) => {
+          if (item.isCenterButton) {
+            return (
+              <motion.button
+                key="ai-center-btn"
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.05 }}
+                onClick={onOpenAiLog}
+                className="relative -top-5 w-14 h-14 rounded-full gradient-purple text-white flex items-center justify-center shadow-2xl border-4 border-black group"
+                title="Open FitLog AI Quick Log"
+              >
+                <Plus className="w-7 h-7 text-white stroke-[2.5] group-hover:rotate-90 transition-transform duration-300" />
+              </motion.button>
+            );
+          }
+
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
 
@@ -29,31 +47,20 @@ export const BottomNav: React.FC = () => {
               to={item.path}
               className={({ isActive }) =>
                 cn(
-                  'relative flex flex-col items-center py-1.5 px-2.5 rounded-2xl transition-all duration-300',
-                  isActive
-                    ? item.highlight
-                      ? 'text-purple-400 font-bold'
-                      : 'text-orange-400 font-bold'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                  'relative flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all duration-300',
+                  isActive ? 'text-purple-300 font-bold' : 'text-zinc-400 hover:text-zinc-200'
                 )
               }
             >
               {isActive && (
                 <motion.div
-                  layoutId="activeTab"
-                  className={cn(
-                    'absolute inset-0 rounded-2xl -z-10',
-                    item.highlight
-                      ? 'bg-purple-500/15 border border-purple-500/30'
-                      : 'bg-orange-500/15 border border-orange-500/30'
-                  )}
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-purple-500/15 border border-purple-500/30 rounded-2xl -z-10"
                   transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                 />
               )}
-              <div className="relative">
-                <Icon className={cn('w-5 h-5', item.highlight && isActive && 'animate-bounce')} />
-              </div>
-              <span className="text-[10px] mt-1 tracking-tight">{item.label}</span>
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] mt-1 tracking-tight font-medium">{item.label}</span>
             </NavLink>
           );
         })}

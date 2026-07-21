@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Flame,
+  Sparkles,
   Utensils,
   Dumbbell,
   Scale,
   Droplets,
-  Plus,
-  Sparkles,
-  ChevronRight,
   TrendingUp,
-  Moon
+  Moon,
+  ChevronRight,
+  BookOpen
 } from 'lucide-react';
 import { GlassCard } from '../../components/common/GlassCard';
-import { MacroRing } from '../../components/common/MacroRing';
+import { HeroCard } from '../../components/common/HeroCard';
 import { StatCard } from '../../components/common/StatCard';
 import { BottomSheet } from '../../components/common/BottomSheet';
 import { useFitnessStore } from '../../stores/useFitnessStore';
@@ -21,10 +20,10 @@ import { useUserStore } from '../../stores/useUserStore';
 import { useNavigate } from 'react-router-dom';
 
 interface HomeScreenProps {
-  onOpenAi: () => void;
+  onOpenAiLog: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAiLog }) => {
   const navigate = useNavigate();
   const profile = useUserStore((state) => state.profile);
   
@@ -37,7 +36,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
     getTodayWorkouts,
     getLatestWeight,
     addWater,
-    addWeight
+    addWeight,
+    meals,
+    workouts
   } = useFitnessStore();
 
   const [activeSheet, setActiveSheet] = useState<'water' | 'weight' | null>(null);
@@ -51,6 +52,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
   const todayWater = getTodayWater();
   const todayWorkouts = getTodayWorkouts();
   const latestWeight = getLatestWeight();
+
+  // Dynamic Greeting based on time of day
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
   const handleLogWeightSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,119 +78,43 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
   };
 
   return (
-    <div className="space-y-6 pb-24 px-4 pt-2">
-      {/* AI Assistant Quick Callout */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        onClick={() => navigate('/ai-coach')}
-        className="glass-card-interactive p-4 rounded-3xl border border-purple-500/30 bg-gradient-to-r from-purple-900/30 via-indigo-900/20 to-black flex items-center justify-between cursor-pointer shadow-lg"
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-purple-600/30 border border-purple-500/40 text-purple-300">
+    <div className="space-y-6 pb-28 px-4 pt-2">
+      {/* Hero Card Container */}
+      <HeroCard
+        greeting={greeting}
+        userName={profile.fullName || 'Alex Vance'}
+        currentWeight={latestWeight}
+        weightChange="-0.4 kg"
+        todayCals={todayCals}
+        targetCals={profile.targetCalories}
+        todayP={todayP}
+        targetP={profile.targetProteinG}
+        todayC={todayC}
+        targetC={profile.targetCarbsG}
+        todayF={todayF}
+        targetF={profile.targetFatG}
+        onOpenAiLog={onOpenAiLog}
+      />
+
+      {/* AI Smart Insight Recommendation Card */}
+      <GlassCard className="p-5 border-purple-500/30 bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black flex items-center justify-between">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-2xl bg-purple-600/20 border border-purple-500/30 text-purple-300">
             <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-              FitLog AI Coach Ready
-            </h4>
-            <p className="text-xs text-zinc-400">
-              Type or speak: <span className="text-purple-300 italic">"Log 3 eggs & oats"</span>
+            <h4 className="text-sm font-extrabold text-white">AI Coach Recommendation</h4>
+            <p className="text-xs text-zinc-300 mt-0.5">
+              "Great job logging {todayP}g protein today! Hydrate with +500ml water before leg day."
             </p>
-          </div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-purple-400" />
-      </motion.div>
-
-      {/* Main Macro Ring & Daily Summary */}
-      <GlassCard className="flex flex-col md:flex-row items-center justify-between gap-6 p-6">
-        <div className="flex justify-center">
-          <MacroRing
-            size={190}
-            strokeWidth={14}
-            caloriesCurrent={todayCals}
-            caloriesTarget={profile.targetCalories}
-            proteinCurrent={todayP}
-            proteinTarget={profile.targetProteinG}
-            carbsCurrent={todayC}
-            carbsTarget={profile.targetCarbsG}
-            fatCurrent={todayF}
-            fatTarget={profile.targetFatG}
-          />
-        </div>
-
-        {/* Macro Stat Breakdown */}
-        <div className="w-full flex-1 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-extrabold text-white tracking-tight">Today's Macros</h3>
-            <span className="text-xs font-semibold text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
-              {todayCals} / {profile.targetCalories} kcal
-            </span>
-          </div>
-
-          {/* Macro Progress Rows */}
-          <div className="space-y-2.5">
-            {/* Protein */}
-            <div>
-              <div className="flex justify-between text-xs font-bold text-zinc-300 mb-1">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Protein
-                </span>
-                <span>
-                  {Math.round(todayP)} / {profile.targetProteinG}g
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full bg-rose-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((todayP / profile.targetProteinG) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Carbs */}
-            <div>
-              <div className="flex justify-between text-xs font-bold text-zinc-300 mb-1">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" /> Carbs
-                </span>
-                <span>
-                  {Math.round(todayC)} / {profile.targetCarbsG}g
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full bg-cyan-400 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((todayC / profile.targetCarbsG) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Fat */}
-            <div>
-              <div className="flex justify-between text-xs font-bold text-zinc-300 mb-1">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Fat
-                </span>
-                <span>
-                  {Math.round(todayF)} / {profile.targetFatG}g
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((todayF / profile.targetFatG) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
           </div>
         </div>
       </GlassCard>
 
-      {/* Quick Action Pills */}
+      {/* Quick Action Grid */}
       <div>
         <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">
-          Quick Actions
+          Quick Log Actions
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <button
@@ -196,8 +125,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
               <Utensils className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-xs font-bold text-white block">Add Meal</span>
-              <span className="text-[10px] text-zinc-400">Log food & macros</span>
+              <span className="text-xs font-bold text-white block">Log Meal</span>
+              <span className="text-[10px] text-zinc-400">Food & macros</span>
             </div>
           </button>
 
@@ -210,7 +139,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
             </div>
             <div>
               <span className="text-xs font-bold text-white block">Log Workout</span>
-              <span className="text-[10px] text-zinc-400">Exercises & sets</span>
+              <span className="text-[10px] text-zinc-400">Sets & reps</span>
             </div>
           </button>
 
@@ -242,7 +171,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
         </div>
       </div>
 
-      {/* Grid KPI Section */}
+      {/* Grid KPI Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Workout Status */}
         <StatCard
@@ -296,6 +225,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenAi }) => {
           onClick={() => navigate('/progress')}
         />
       </div>
+
+      {/* Today's Timeline Preview Widget */}
+      <GlassCard
+        interactive
+        onClick={() => navigate('/journal')}
+        className="p-5 space-y-3 border-white/10 hover:border-purple-500/30"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-purple-400" /> Today's Unified Timeline
+          </h3>
+          <span className="text-xs font-bold text-purple-400 flex items-center gap-1">
+            View All <ChevronRight className="w-4 h-4" />
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {meals.slice(0, 2).map((m) => (
+            <div key={m.id} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-white/5 border border-white/5">
+              <span className="font-bold text-white">
+                {m.mealType === 'breakfast' ? '🥚' : '🍗'} {m.title}
+              </span>
+              <span className="font-mono text-zinc-400">{m.totalCalories} kcal</span>
+            </div>
+          ))}
+        </div>
+      </GlassCard>
 
       {/* Bottom Sheet Modal: Add Weight */}
       <BottomSheet
