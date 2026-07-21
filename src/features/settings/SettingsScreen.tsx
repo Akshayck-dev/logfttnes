@@ -3,22 +3,22 @@ import { motion } from 'framer-motion';
 import {
   User,
   Target,
-  Moon,
-  Sun,
   Database,
   Download,
   ShieldCheck,
   LogOut,
   Save,
   CheckCircle2,
-  Lock
+  Trash2
 } from 'lucide-react';
 import { GlassCard } from '../../components/common/GlassCard';
 import { useUserStore } from '../../stores/useUserStore';
+import { useFitnessStore } from '../../stores/useFitnessStore';
 import { isSupabaseConfigured } from '../../api/supabase';
 
 export const SettingsScreen: React.FC = () => {
-  const { profile, updateProfile, theme, setTheme, setAuthenticated } = useUserStore();
+  const { profile, updateProfile, setAuthenticated } = useUserStore();
+  const { clearAllData } = useFitnessStore();
 
   const [fullName, setFullName] = useState(profile.fullName);
   const [age, setAge] = useState(profile.age.toString());
@@ -59,6 +59,14 @@ export const SettingsScreen: React.FC = () => {
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+  };
+
+  const handleClearData = () => {
+    if (window.confirm("Are you sure you want to clear all logged meals, workouts, weights, and water logs?")) {
+      clearAllData();
+      localStorage.removeItem('fitlog-fitness-storage');
+      alert("All dummy data & logs cleared!");
+    }
   };
 
   return (
@@ -226,6 +234,13 @@ export const SettingsScreen: React.FC = () => {
           className="w-full p-3.5 rounded-2xl glass-card text-white font-bold text-xs hover:bg-white/10 transition-all flex items-center justify-center gap-2 border border-white/10"
         >
           <Download className="w-4 h-4 text-purple-400" /> Export FitLog Backup Data (JSON)
+        </button>
+
+        <button
+          onClick={handleClearData}
+          className="w-full p-3.5 rounded-2xl bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold text-xs hover:bg-amber-500/20 transition-all flex items-center justify-center gap-2"
+        >
+          <Trash2 className="w-4 h-4" /> Reset & Clear All Logs
         </button>
 
         <button

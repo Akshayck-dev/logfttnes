@@ -36,6 +36,7 @@ interface FitnessState {
   addSleep: (sleep: Omit<SleepLog, 'id' | 'userId'>) => void;
   
   addAiLog: (prompt: string, entity: AiDetectedEntity) => void;
+  clearAllData: () => void;
 
   // Computed helper getters for today
   getTodayCalories: () => number;
@@ -49,87 +50,17 @@ interface FitnessState {
 
 const todayStr = new Date().toISOString().split('T')[0];
 
-const initialMeals: MealLog[] = [
-  {
-    id: 'm-1',
-    userId: 'user-default-1',
-    mealType: 'breakfast',
-    title: 'Avocado Toast & Scrambled Eggs',
-    totalCalories: 480,
-    totalProteinG: 28,
-    totalCarbsG: 42,
-    totalFatG: 20,
-    totalFiberG: 7,
-    isFavorite: true,
-    loggedAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-    items: [
-      { id: 'mi-1', name: 'Whole Grain Bread', quantity: 2, unit: 'slice', calories: 180, proteinG: 8, carbsG: 34, fatG: 2, fiberG: 5 },
-      { id: 'mi-2', name: 'Eggs Large', quantity: 2, unit: 'piece', calories: 140, proteinG: 12, carbsG: 1, fatG: 10, fiberG: 0 },
-      { id: 'mi-3', name: 'Avocado Fresh', quantity: 0.5, unit: 'piece', calories: 160, proteinG: 2, carbsG: 7, fatG: 14, fiberG: 5 }
-    ]
-  },
-  {
-    id: 'm-2',
-    userId: 'user-default-1',
-    mealType: 'lunch',
-    title: 'Grilled Chicken Bowl & Quinoa',
-    totalCalories: 620,
-    totalProteinG: 52,
-    totalCarbsG: 65,
-    totalFatG: 16,
-    totalFiberG: 9,
-    isFavorite: false,
-    loggedAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    items: [
-      { id: 'mi-4', name: 'Chicken Breast', quantity: 200, unit: 'g', calories: 330, proteinG: 44, carbsG: 0, fatG: 7, fiberG: 0 },
-      { id: 'mi-5', name: 'Cooked Quinoa', quantity: 150, unit: 'g', calories: 180, proteinG: 6, carbsG: 32, fatG: 3, fiberG: 4 },
-      { id: 'mi-6', name: 'Steamed Broccoli & Olive Oil', quantity: 1, unit: 'cup', calories: 110, proteinG: 2, carbsG: 8, fatG: 6, fiberG: 5 }
-    ]
-  }
-];
-
-const initialWorkouts: WorkoutLog[] = [
-  {
-    id: 'w-1',
-    userId: 'user-default-1',
-    title: 'Chest & Triceps Hypertrophy',
-    category: 'strength',
-    durationMinutes: 52,
-    caloriesBurned: 410,
-    notes: 'Felt strong on incline dumbbell press today.',
-    loggedAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-    exercises: [
-      { id: 'ex-1', exerciseName: 'Barbell Bench Press', setsCount: 4, repsCount: 8, weightKg: 85 },
-      { id: 'ex-2', exerciseName: 'Incline Dumbbell Press', setsCount: 3, repsCount: 10, weightKg: 30 },
-      { id: 'ex-3', exerciseName: 'Tricep Rope Pushdowns', setsCount: 4, repsCount: 12, weightKg: 35 }
-    ]
-  }
-];
-
-const initialWeights: WeightLog[] = [
-  { id: 'wt-1', userId: 'user-default-1', weightKg: 78.0, bmi: 24.1, loggedAt: new Date(Date.now() - 14 * 86400 * 1000).toISOString() },
-  { id: 'wt-2', userId: 'user-default-1', weightKg: 77.5, bmi: 23.9, loggedAt: new Date(Date.now() - 10 * 86400 * 1000).toISOString() },
-  { id: 'wt-3', userId: 'user-default-1', weightKg: 77.1, bmi: 23.8, loggedAt: new Date(Date.now() - 7 * 86400 * 1000).toISOString() },
-  { id: 'wt-4', userId: 'user-default-1', weightKg: 76.8, bmi: 23.7, loggedAt: new Date(Date.now() - 3 * 86400 * 1000).toISOString() },
-  { id: 'wt-5', userId: 'user-default-1', weightKg: 76.4, bmi: 23.6, loggedAt: new Date().toISOString() }
-];
-
-const initialWaterLogs: WaterLog[] = [
-  { id: 'wl-1', userId: 'user-default-1', amountMl: 500, loggedAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString() },
-  { id: 'wl-2', userId: 'user-default-1', amountMl: 750, loggedAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString() },
-  { id: 'wl-3', userId: 'user-default-1', amountMl: 500, loggedAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString() }
-];
-
-const initialSleepLogs: SleepLog[] = [
-  { id: 'sl-1', userId: 'user-default-1', sleepTime: '23:15', wakeTime: '07:30', durationHours: 8.25, qualityScore: 5, notes: 'Restful REM sleep cycle', loggedAt: todayStr },
-  { id: 'sl-2', userId: 'user-default-1', sleepTime: '23:45', wakeTime: '07:15', durationHours: 7.5, qualityScore: 4, notes: 'Woke up energized', loggedAt: new Date(Date.now() - 86400 * 1000).toISOString().split('T')[0] }
-];
+const initialMeals: MealLog[] = [];
+const initialWorkouts: WorkoutLog[] = [];
+const initialWeights: WeightLog[] = [];
+const initialWaterLogs: WaterLog[] = [];
+const initialSleepLogs: SleepLog[] = [];
 
 const initialBadges: AchievementBadge[] = [
-  { id: 'b-1', title: '7-Day Streak', description: 'Consistently logged workouts and meals for 7 straight days', iconName: 'Flame', unlocked: true, unlockedAt: '2026-07-20' },
-  { id: 'b-2', title: 'Hydration Hero', description: 'Reached 3,000ml water target 5 days in a row', iconName: 'Droplets', unlocked: true, unlockedAt: '2026-07-19' },
-  { id: 'b-3', title: 'Iron Lifter', description: 'Logged 10 strength sessions in FitLog AI', iconName: 'Dumbbell', unlocked: true, unlockedAt: '2026-07-18' },
-  { id: 'b-4', title: 'Macro Master', description: 'Hit protein target within 5% error margin', iconName: 'Target', unlocked: false }
+  { id: 'b-1', title: 'First Log', description: 'Logged your first meal or workout in FitLog AI', iconName: 'Flame', unlocked: false },
+  { id: 'b-2', title: 'Hydration Hero', description: 'Reached 3,000ml water target', iconName: 'Droplets', unlocked: false },
+  { id: 'b-3', title: 'Iron Lifter', description: 'Logged a strength workout session', iconName: 'Dumbbell', unlocked: false },
+  { id: 'b-4', title: 'Macro Master', description: 'Hit daily protein target', iconName: 'Target', unlocked: false }
 ];
 
 export const useFitnessStore = create<FitnessState>()(
@@ -140,7 +71,7 @@ export const useFitnessStore = create<FitnessState>()(
       weights: initialWeights,
       waterLogs: initialWaterLogs,
       sleepLogs: initialSleepLogs,
-      streak: { currentStreak: 7, longestStreak: 14, lastActivityDate: todayStr },
+      streak: { currentStreak: 0, longestStreak: 0, lastActivityDate: todayStr },
       badges: initialBadges,
       aiHistory: [],
 
@@ -149,7 +80,14 @@ export const useFitnessStore = create<FitnessState>()(
           ...mealData,
           id: `m-${Date.now()}`
         };
-        set((state) => ({ meals: [newMeal, ...state.meals] }));
+        set((state) => ({
+          meals: [newMeal, ...state.meals],
+          streak: {
+            currentStreak: Math.max(state.streak.currentStreak, 1),
+            longestStreak: Math.max(state.streak.longestStreak, 1),
+            lastActivityDate: todayStr
+          }
+        }));
       },
       deleteMeal: (id) => {
         set((state) => ({ meals: state.meals.filter((m) => m.id !== id) }));
@@ -160,14 +98,21 @@ export const useFitnessStore = create<FitnessState>()(
           ...workoutData,
           id: `w-${Date.now()}`
         };
-        set((state) => ({ workouts: [newWorkout, ...state.workouts] }));
+        set((state) => ({
+          workouts: [newWorkout, ...state.workouts],
+          streak: {
+            currentStreak: Math.max(state.streak.currentStreak, 1),
+            longestStreak: Math.max(state.streak.longestStreak, 1),
+            lastActivityDate: todayStr
+          }
+        }));
       },
       deleteWorkout: (id) => {
         set((state) => ({ workouts: state.workouts.filter((w) => w.id !== id) }));
       },
 
       addWeight: (weightKg, notes) => {
-        const heightCm = 180; // Default height for BMI
+        const heightCm = 180;
         const heightM = heightCm / 100;
         const bmi = Math.round((weightKg / (heightM * heightM)) * 10) / 10;
 
@@ -216,6 +161,18 @@ export const useFitnessStore = create<FitnessState>()(
         set((state) => ({ aiHistory: [logItem, ...state.aiHistory] }));
       },
 
+      clearAllData: () => {
+        set({
+          meals: [],
+          workouts: [],
+          weights: [],
+          waterLogs: [],
+          sleepLogs: [],
+          aiHistory: [],
+          streak: { currentStreak: 0, longestStreak: 0, lastActivityDate: todayStr }
+        });
+      },
+
       // Getters
       getTodayCalories: () => {
         return get().meals
@@ -247,7 +204,7 @@ export const useFitnessStore = create<FitnessState>()(
       },
       getLatestWeight: () => {
         const sorted = [...get().weights].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime());
-        return sorted[0]?.weightKg || 76.4;
+        return sorted[0]?.weightKg || 75.0;
       }
     }),
     {
