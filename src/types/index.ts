@@ -34,20 +34,21 @@ export interface WeightLog {
   weightKg: number;
   bmi: number;
   notes?: string;
-  loggedAt: string; // ISO date
+  loggedAt: string;
 }
 
 export interface MealItem {
-  id: string;
+  id?: string;
   mealId?: string;
   name: string;
   quantity: number;
-  unit: string; // 'g' | 'serving' | 'oz' | 'piece'
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-  fiberG: number;
+  unit: string;
+  calories?: number | null;
+  proteinG?: number | null;
+  carbsG?: number | null;
+  fatG?: number | null;
+  fiberG?: number | null;
+  confidence?: number;
 }
 
 export interface MealLog {
@@ -55,11 +56,11 @@ export interface MealLog {
   userId: string;
   mealType: MealCategory;
   title: string;
-  totalCalories: number;
-  totalProteinG: number;
-  totalCarbsG: number;
-  totalFatG: number;
-  totalFiberG: number;
+  totalCalories?: number | null;
+  totalProteinG?: number | null;
+  totalCarbsG?: number | null;
+  totalFatG?: number | null;
+  totalFiberG?: number | null;
   items: MealItem[];
   isFavorite?: boolean;
   loggedAt: string;
@@ -81,7 +82,7 @@ export interface WorkoutLog {
   title: string;
   category: WorkoutCategory;
   durationMinutes: number;
-  caloriesBurned: number;
+  caloriesBurned?: number | null;
   notes?: string;
   isTemplate?: boolean;
   exercises: ExerciseSet[];
@@ -98,16 +99,16 @@ export interface WaterLog {
 export interface SleepLog {
   id: string;
   userId: string;
-  sleepTime: string; // ISO or string
+  sleepTime: string;
   wakeTime: string;
   durationHours: number;
-  qualityScore: number; // 1 - 5
+  qualityScore: number;
   notes?: string;
-  loggedAt: string; // YYYY-MM-DD
+  loggedAt: string;
 }
 
 export interface DailySummary {
-  date: string; // YYYY-MM-DD
+  date: string;
   caloriesConsumed: number;
   proteinG: number;
   carbsG: number;
@@ -124,9 +125,10 @@ export interface UserStreak {
 }
 
 export interface AiDetectedEntity {
-  intent: 'meal' | 'workout' | 'weight' | 'water' | 'sleep' | 'unknown';
+  intent: 'meal' | 'workout' | 'weight' | 'water' | 'sleep' | 'unknown' | 'ambiguous';
   confidence: number;
   summaryText: string;
+  clarificationQuestion?: string | null;
   mealData?: Partial<MealLog>;
   workoutData?: Partial<WorkoutLog>;
   weightData?: Partial<WeightLog>;
